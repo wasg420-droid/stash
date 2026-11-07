@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Stash</title>
+  <link rel="icon" href="icons/32.png">
+  <link rel="stylesheet" href="manager.css">
+</head>
+<body>
+  <div class="app">
+    <div class="main">
+      <header class="top">
+        <svg class="lock" viewBox="0 0 24 24" width="17" height="17"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        <h1 id="wsName" spellcheck="false" title="Double-click to rename">Personal</h1>
+        <span class="meta" id="colCount"></span>
+        <span class="meta" id="tabCount"></span>
+        <div class="grow"></div>
+        <button class="ghost" id="saveWindow" title="Save every tab in this window as a new collection">Save window</button>
+        <button class="icon" id="settingsBtn" title="Settings">
+          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+        </button>
+        <input type="file" id="importFile" accept="application/json" hidden>
+      </header>
+
+      <nav class="toolbar">
+        <button class="icon" id="addCol" title="New collection (N)">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <button class="icon" id="toggleAll" title="Collapse all">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M5 12h14"/></svg>
+        </button>
+        <span class="chip" id="filterChip" hidden>
+          <svg viewBox="0 0 24 24" width="13" height="13"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+          <span id="filterChipText"></span>
+          <button id="filterClear" title="Clear filter">×</button>
+        </span>
+      </nav>
+
+      <section id="collections"></section>
+      <div id="dropNew" class="drop-new">Drop here to create a new collection</div>
+      <div id="empty" class="empty" hidden>
+        <p>No collections yet.</p>
+        <p class="sub">Click <b>+</b> to create one, or drag tabs from the panel on the right.</p>
+      </div>
+    </div>
+
+    <aside id="sidebar">
+      <div class="side-head">
+        <button class="icon side-toggle" id="sideToggle" title="Collapse panel">
+          <svg viewBox="0 0 24 24" width="16" height="16"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M14 5v14"/><path class="arr" d="m8.5 10 2 2-2 2"/></svg>
+        </button>
+        <span class="side-title">Open tabs</span>
+        <span class="meta" id="openCount"></span>
+      </div>
+      <div class="side-hint">Drag into a collection</div>
+      <div id="openTabs"></div>
+    </aside>
+  </div>
+
+  <dialog id="editDlg">
+    <form id="edForm" novalidate>
+      <div class="ed-head"><span id="edFav"></span><span>Edit tab</span><span class="ed-col" id="edCol"></span></div>
+      <label>Name<input id="edTitle" type="text" placeholder="Display name" autocomplete="off"></label>
+      <label>Link<input id="edUrl" type="text" placeholder="https://…" autocomplete="off" spellcheck="false"></label>
+      <label>Notes<textarea id="edNotes" rows="4" placeholder="Anything you want to remember about this tab"></textarea></label>
+      <div class="ed-actions">
+        <span class="hint">Ctrl/⌘ + Enter to save</span>
+        <button type="button" class="btn" id="edCancel">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDlg">
+    <div class="set">
+      <div class="set-head">
+        <span>Settings</span>
+        <button class="icon" id="setClose" title="Close (Esc)"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+
+      <section class="set-sec">
+        <div class="set-label">Filter</div>
+        <input id="filter" type="search" placeholder="Filter collections, tabs and notes…" autocomplete="off">
+        <div class="set-help">Filters the page as you type. Press <kbd>/</kbd> anytime to jump here.</div>
+      </section>
+
+      <section class="set-sec">
+        <div class="set-label">Sort collections</div>
+        <div class="seg" id="sortSeg">
+          <button data-sort="custom">Custom order</button>
+          <button data-sort="name">Name A–Z</button>
+          <button data-sort="count">Most tabs</button>
+          <button data-sort="recent">Recent</button>
+        </div>
+      </section>
+
+      <section class="set-sec">
+        <div class="set-label">View</div>
+        <div class="seg" id="viewSeg">
+          <button data-view="compact">Compact</button>
+          <button data-view="comfortable">Comfortable</button>
+          <button data-view="list">List</button>
+        </div>
+      </section>
+
+      <section class="set-sec">
+        <div class="set-label">Theme</div>
+        <div class="themes" id="themes"></div>
+        <div class="colors">
+          <label><input type="color" data-key="bg">Background</label>
+          <label><input type="color" data-key="card">Cards</label>
+          <label><input type="color" data-key="text">Text</label>
+          <label><input type="color" data-key="accent">Accent</label>
+        </div>
+      </section>
+
+      <section class="set-sec">
+        <div class="set-label">Background image</div>
+        <div class="bg-row">
+          <div class="bg-thumb" id="bgThumb"></div>
+          <div class="grow set-help" id="bgStatus" style="margin:0">None</div>
+          <button class="btn" id="bgPick">Choose image…</button>
+          <button class="btn" id="bgRemove" hidden>Remove</button>
+        </div>
+        <div class="range-row" id="dimRow" hidden>
+          <span>Dim</span><input type="range" id="bgDim" min="0" max="90" step="5"><span id="bgDimVal"></span>
+        </div>
+        <input type="file" id="bgFile" accept="image/*" hidden>
+      </section>
+
+      <section class="set-sec row">
+        <div>
+          <div class="set-label">Open tabs panel</div>
+          <div class="set-help">Show your open tabs on the right for dragging.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="sidebarToggle"><span></span></label>
+      </section>
+
+      <section class="set-sec">
+        <div class="set-label">Backup</div>
+        <div class="set-btns">
+          <button class="btn" id="exportBtn">Export JSON</button>
+          <button class="btn" id="importBtn">Import JSON…</button>
+        </div>
+        <div class="set-help">Export before removing the extension. Your collections are deleted when it's uninstalled.</div>
+      </section>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" hidden><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
+  <script src="manager.js"></script>
+</body>
+</html>
