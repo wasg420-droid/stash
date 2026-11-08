@@ -10,7 +10,8 @@ const THEMES = {
   mocha:    { name: 'Mocha',    bg: '#221c19', card: '#2e2622', text: '#efe5dc', accent: '#e0a96d' },
   light:    { name: 'Light',    bg: '#f4f4f2', card: '#ffffff', text: '#1f1f1f', accent: '#2f6fde' },
 };
-const DEFAULT = { name: 'Personal', sort: 'custom', view: 'compact', sidebar: true, collections: [], theme: { preset: 'dark', bg: '#232323', card: '#2c2c2c', text: '#e8e8e8', accent: '#8ab4ff', dim: 55 } };
+const DEFAULT_WP_KEY = { code: 'KeyH', ctrl: false, alt: false, shift: false, meta: false };
+const DEFAULT = { name: 'Personal', sort: 'custom', view: 'compact', sidebar: true, openNewTab: true, wallpaperOnly: false, wallpaperKey: DEFAULT_WP_KEY, collections: [], theme: { preset: 'dark', bg: '#232323', card: '#2c2c2c', text: '#e8e8e8', accent: '#8ab4ff', dim: 55 } };
 
 let state = structuredClone(DEFAULT);
 let filter = '';
@@ -71,7 +72,8 @@ function hl(text) {
   if (i < 0) return esc(text);
   return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + filter.length)) + '</mark>' + esc(text.slice(i + filter.length));
 }
-const matches = (t) => !filter || [t.title, t.url, t.notes].some((v) => (v || '').toLowerCase().includes(filter));
+const tabName = (t) => t.name || t.title || t.url;
+const matches = (t) => !filter || [t.name, t.title, t.url, t.notes].some((v) => (v || '').toLowerCase().includes(filter));
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const saveable = (url) => !!url && !url.startsWith(SELF) && !/^[a-z-]+:\/\/newtab\/?$/i.test(url);
 
@@ -85,13 +87,16 @@ function sortedCollections() {
 
 // ---------- render ----------
 function render() {
-  document.body.className = `view-${state.view}` + (state.sidebar ? '' : ' no-sidebar') + (state.sideCollapsed ? ' side-collapsed' : '') + (drag ? ' dragging-item' : '') + (bgImage ? ' has-bg' : '');
+  document.body.className = `view-${state.view}` + (state.sidebar ? '' : ' no-sidebar') + (state.sideCollapsed ? ' side-collapsed' : '') + (drag ? ' dragging-item' : '') + (bgImage ? ' has-bg' : '') + (state.wallpaperOnly ? ' wallpaper-only' : '');
   if (document.activeElement !== $('#wsName')) $('#wsName').textContent = state.name;
   $('#colCount').textContent = plural(state.collections.length, 'Collection');
   $('#tabCount').textContent = plural(state.collections.reduce((n, c) => n + c.tabs.length, 0), 'tab');
   document.querySelectorAll('#sortSeg button').forEach((b) => b.classList.toggle('on', b.dataset.sort === state.sort));
   document.querySelectorAll('#viewSeg button').forEach((b) => b.classList.toggle('on', b.dataset.view === state.view));
   $('#sidebarToggle').checked = !!state.sidebar;
+  $('#newTabToggle').checked = state.openNewTab !== false;
+  $('#wpToggle').checked = !!state.wallpaperOnly;
+  renderWpKey();
   $('#sideToggle').title = state.sideCollapsed ? 'Expand panel  ( \\ )' : 'Collapse panel  ( \\ )';
   applyTheme();
   $('#filterChip').hidden = !filter;
@@ -148,11 +153,11 @@ function renderCard(col, t) {
   a.href = t.url;
   a.draggable = true;
   a.dataset.id = t.id;
-  a.title = (t.title ? `${t.title}\n` : '') + t.url + (t.notes ? `\n\n${t.notes}` : '');
+  a.title = tabName(t) + (tabName(t) !== t.url ? `\n${t.url}` : '') + (t.notes ? `\n\n${t.notes}` : '');
   a.append(favEl(t.url));
   const txt = document.createElement('span');
   txt.className = 'txt';
-  txt.innerHTML = `<span class="t">${hl(t.title ?? t.url)}</span><span class="u">${hl(hostOf(t.url))}</span>`
+  txt.innerHTML = `<span class="t">${hl(tabName(t))}</span><span class="u">${hl(hostOf(t.url))}</span>`
     + (t.notes ? `<span class="n">${hl(t.notes.replace(/\s+/g, ' '))}</span>` : '');
   a.append(txt);
   if (t.notes) {
@@ -289,7 +294,7 @@ const dlg = $('#editDlg');
 let editing = null;
 function openEditor(col, t) {
   editing = { colId: col.id, tabId: t.id };
-  $('#edTitle').value = t.title || '';
+  $('#edTitle').value = tabName(t);
   $('#edUrl').value = t.url;
   $('#edNotes').value = t.notes || '';
   $('#edCol').textContent = col.name;
@@ -307,7 +312,9 @@ $('#edForm').addEventListener('submit', (e) => {
   try { new URL(url); } catch { $('#edUrl').focus(); $('#edUrl').setCustomValidity('Enter a valid link'); $('#edUrl').reportValidity(); return; }
   if (t) commit(() => {
     t.url = url;
-    t.title = $('#edTitle').value.trim();
+    // Keep the custom name in its own field so it survives export/import as-is
+    const name = $('#edTitle').value.trim();
+    if (name && name !== t.title && name !== url) t.name = name; else delete t.name;
     const n = $('#edNotes').value.trim();
     if (n) t.notes = n; else delete t.notes;
     touch(col);
@@ -323,7 +330,7 @@ dlg.addEventListener('close', () => (editing = null));
 // ---------- mutations ----------
 function insertItems(col, items, beforeId) {
   const idx = beforeId ? col.tabs.findIndex((t) => t.id === beforeId) : -1;
-  const fresh = items.map((i) => ({ id: uid(), url: i.url, title: i.title ?? i.url, ...(i.notes ? { notes: i.notes } : {}) }));
+  const fresh = items.map((i) => ({ id: uid(), url: i.url, title: i.title || i.url, ...(i.name ? { name: i.name } : {}), ...(i.notes ? { notes: i.notes } : {}) }));
   if (idx < 0) col.tabs.push(...fresh);
   else col.tabs.splice(idx, 0, ...fresh);
   touch(col);
@@ -398,15 +405,11 @@ document.addEventListener('dragenter', (e) => { if (!drag && hasUrl(e)) document
 document.addEventListener('drop', () => setTimeout(endDrag, 0));
 document.addEventListener('dragleave', (e) => { if (!e.relatedTarget && !drag) document.body.classList.remove('dragging-item'); });
 
-// When Stash is showing as a new tab, open links in that same tab instead of adding another
+// Cards open in a new tab by default; the "Open links in a new tab" setting switches to this tab
 let selfTab = null;
 chrome.tabs.getCurrent((t) => (selfTab = t || null));
-function isNewTabPage() {
-  const u = (selfTab && (selfTab.pendingUrl || selfTab.url)) || '';
-  return /^[a-z-]+:\/\/newtab\/?$/i.test(u);
-}
 function openHere(url) {
-  if (selfTab && isNewTabPage()) chrome.tabs.update(selfTab.id, { url });
+  if (state.openNewTab === false && selfTab) chrome.tabs.update(selfTab.id, { url });
   else chrome.tabs.create({ url, active: true });
 }
 
@@ -582,6 +585,8 @@ $('#filterChipText').addEventListener('click', () => openSettings(true));
 
 $('#sortSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) commit(() => (state.sort = b.dataset.sort)); });
 $('#viewSeg').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) commit(() => (state.view = b.dataset.view)); });
+$('#newTabToggle').addEventListener('change', (e) => commit(() => (state.openNewTab = e.target.checked)));
+$('#wpToggle').addEventListener('change', (e) => { if (e.target.checked) setDlg.close(); setWallpaperOnly(e.target.checked); });
 $('#sidebarToggle').addEventListener('change', (e) => { commit(() => (state.sidebar = e.target.checked)); renderSidebar(); });
 
 $('#exportBtn').addEventListener('click', () => {
@@ -605,7 +610,7 @@ $('#importFile').addEventListener('change', async (e) => {
     if (!Array.isArray(cols)) throw new Error('No collections found');
     const clean = cols.map((c) => ({
       id: uid(), name: String(c.name || c.title || 'Imported'), collapsed: true, updated: Date.now(),
-      tabs: (c.tabs || c.cards || []).filter((t) => t && t.url).map((t) => ({ id: uid(), url: String(t.url), title: String(t.title ?? t.url), ...(t.notes ? { notes: String(t.notes) } : {}) })),
+      tabs: (c.tabs || c.cards || []).filter((t) => t && t.url).map((t) => ({ id: uid(), url: String(t.url), title: String(t.title || t.url), ...(t.name ? { name: String(t.name) } : {}), ...(t.notes ? { notes: String(t.notes) } : {}) })),
     }));
     commit(() => state.collections.push(...clean), `Imported ${plural(clean.length, 'collection')}`);
   } catch (err) {
@@ -641,9 +646,80 @@ ws.addEventListener('blur', () => {
   if (v && v !== state.name) commit(() => (state.name = v)); else ws.textContent = state.name;
 });
 
+// ---------- wallpaper-only mode ----------
+const MOD_KEYS = ['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'Fn'];
+const RESERVED = ['Slash', 'KeyN', 'Backslash', 'Escape', 'Enter', 'Tab'];
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform);
+const wpKey = () => ({ ...DEFAULT_WP_KEY, ...(state.wallpaperKey || {}) });
+function keyName(code, key) {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  if (/^Numpad/.test(code)) return 'Num ' + code.slice(6);
+  const named = { Space: 'Space', Backquote: '`', Minus: '-', Equal: '=', BracketLeft: '[', BracketRight: ']', Semicolon: ';', Quote: "'", Comma: ',', Period: '.', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+  return named[code] || key || code;
+}
+function comboLabel(k) {
+  const parts = [];
+  if (k.ctrl) parts.push(IS_MAC ? '⌃' : 'Ctrl');
+  if (k.alt) parts.push(IS_MAC ? '⌥' : 'Alt');
+  if (k.shift) parts.push(IS_MAC ? '⇧' : 'Shift');
+  if (k.meta) parts.push(IS_MAC ? '⌘' : 'Win');
+  parts.push(keyName(k.code, k.key));
+  return parts.join(IS_MAC ? '' : '+');
+}
+const keyMatches = (e, k) => e.code === k.code && e.ctrlKey === !!k.ctrl && e.altKey === !!k.alt && e.shiftKey === !!k.shift && e.metaKey === !!k.meta;
+
+let recordingKey = false;
+function renderWpKey() {
+  const lbl = $('#wpKeyLabel');
+  lbl.textContent = recordingKey ? 'Press keys…' : comboLabel(wpKey());
+  lbl.classList.toggle('recording', recordingKey);
+  $('#wpKeyRecord').textContent = recordingKey ? 'Cancel' : 'Change…';
+  const k = wpKey();
+  $('#wpKeyReset').hidden = recordingKey || (k.code === DEFAULT_WP_KEY.code && !k.ctrl && !k.alt && !k.shift && !k.meta);
+}
+function stopRecording() { recordingKey = false; renderWpKey(); }
+$('#wpKeyRecord').addEventListener('click', () => { recordingKey = !recordingKey; renderWpKey(); });
+$('#wpKeyReset').addEventListener('click', () => commit(() => (state.wallpaperKey = { ...DEFAULT_WP_KEY })));
+setDlg.addEventListener('close', stopRecording);
+setDlg.addEventListener('cancel', (e) => { if (recordingKey) { e.preventDefault(); stopRecording(); } });
+window.addEventListener('keydown', (e) => {
+  if (!recordingKey) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (e.key === 'Escape') return stopRecording();
+  if (MOD_KEYS.includes(e.key)) return;
+  const k = { code: e.code, key: e.key.length === 1 ? e.key.toUpperCase() : e.key, ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
+  const plain = !k.ctrl && !k.alt && !k.meta;
+  if (RESERVED.includes(k.code) && (plain || k.code === 'Escape')) { toast(`${comboLabel(k)} is already used by Stash. Try another key`); return; }
+  recordingKey = false;
+  commit(() => (state.wallpaperKey = k));
+  toast('Wallpaper shortcut set to ' + comboLabel(k));
+}, true);
+
+let hintTimer;
+function setWallpaperOnly(on) {
+  if (!!state.wallpaperOnly === on) return render();
+  commit(() => (state.wallpaperOnly = on));
+  const hint = $('#wpHint');
+  clearTimeout(hintTimer);
+  if (!on) { hint.hidden = true; return; }
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  hint.textContent = `Press ${comboLabel(wpKey())} or Esc to show Stash`;
+  hint.classList.remove('fade');
+  hint.hidden = false;
+  hintTimer = setTimeout(() => { hint.classList.add('fade'); hintTimer = setTimeout(() => (hint.hidden = true), 700); }, 2200);
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-  if (dlg.open || setDlg.open || e.target.isContentEditable || /INPUT|TEXTAREA/.test(e.target.tagName) || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (state.wallpaperOnly) {
+    if (e.key === 'Escape' || keyMatches(e, wpKey())) { e.preventDefault(); setWallpaperOnly(false); }
+    return;
+  }
+  if (dlg.open || setDlg.open || e.target.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName)) return;
+  if (keyMatches(e, wpKey())) { e.preventDefault(); setWallpaperOnly(true); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === '/') { e.preventDefault(); openSettings(true); }
   if (e.key === 'n') { e.preventDefault(); newCollection(); }
   if (e.key === '\\' && state.sidebar) { e.preventDefault(); commit(() => (state.sideCollapsed = !state.sideCollapsed)); }

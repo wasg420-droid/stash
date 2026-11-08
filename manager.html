@@ -17,7 +17,7 @@
         <div class="grow"></div>
         <button class="ghost" id="saveWindow" title="Save every tab in this window as a new collection">Save window</button>
         <button class="icon" id="settingsBtn" title="Settings">
-          <svg viewBox="0 0 24 24" width="16" height="16"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+          <svg viewBox="0 0 24 24" width="17" height="17"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
         </button>
         <input type="file" id="importFile" accept="application/json" hidden>
       </header>
@@ -130,6 +130,32 @@
 
       <section class="set-sec row">
         <div>
+          <div class="set-label">Open links in a new tab</div>
+          <div class="set-help">When off, clicking a card opens it in this tab instead.</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="newTabToggle"><span></span></label>
+      </section>
+
+      <section class="set-sec">
+        <div class="row-flex">
+          <div>
+            <div class="set-label">Wallpaper only</div>
+            <div class="set-help">Hide everything and show just the background image.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="wpToggle"><span></span></label>
+        </div>
+        <div class="key-row">
+          <span class="set-help">Shortcut</span>
+          <kbd id="wpKeyLabel"></kbd>
+          <div class="grow"></div>
+          <button class="btn" id="wpKeyRecord">Change…</button>
+          <button class="btn" id="wpKeyReset" hidden>Reset</button>
+        </div>
+        <div class="set-help">Press the shortcut again, or <kbd>Esc</kbd>, to bring everything back.</div>
+      </section>
+
+      <section class="set-sec row">
+        <div>
           <div class="set-label">Open tabs panel</div>
           <div class="set-help">Show your open tabs on the right for dragging.</div>
         </div>
@@ -147,6 +173,7 @@
     </div>
   </dialog>
 
+  <div id="wpHint" class="wp-hint" hidden></div>
   <div id="toast" class="toast" hidden><span id="toastMsg"></span><button id="toastUndo">Undo</button></div>
   <script src="manager.js"></script>
 </body>

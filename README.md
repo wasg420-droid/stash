@@ -8,12 +8,13 @@ A minimal, dark bookmark manager for [Helium](https://helium.computer) and other
 
 - **Collections**: click to open or close, double-click a name to rename it, drag them to reorder
 - **Tab cards** with site icons. Click to open; Ctrl/⌘-click or middle-click opens a background tab
-- **Edit any card**: change its display name or link, or add notes (notes are searchable)
+- **Edit any card**: change its display name or link, or add notes (notes are searchable). Custom names are saved as `name` in the exported JSON, next to the page's original `title`
 - **Open tabs panel**: drag your open tabs straight into a collection. The panel can collapse (`\`)
 - **Right-click → Save to Stash** on any page or link
 - **Save window** saves every open tab as a new collection
 - **Themes**: six presets, custom colors and an optional background image with a dim slider
-- **New tab page**: Stash replaces the new tab, and links open in place
+- **New tab page**: Stash replaces the new tab. Cards open in a new tab by default; turn off **Settings → Open links in a new tab** to open them in the current tab instead
+- **Wallpaper only**: hide everything and show just your background image (`H` by default, change it in Settings)
 - **Filter, sort and views** (Compact / Comfortable / List) in Settings (`/` to filter)
 - **Undo** for deletes, plus **Export / Import JSON** backups
 - **Private**: everything is stored locally in your browser. No accounts, no network requests
@@ -34,6 +35,7 @@ A minimal, dark bookmark manager for [Helium](https://helium.computer) and other
 | `/` | Open Settings and focus the filter |
 | `n` | New collection |
 | `\` | Collapse or expand the open-tabs panel |
+| `H` | Wallpaper only: hide everything (customizable; `Esc` also exits) |
 | `Alt+Shift+S` | Open Stash |
 
 ## Project layout
